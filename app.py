@@ -1,17 +1,43 @@
-import json
-
-from flask import Flask, render_template, redirect, url_for, request, jsonify
-from flask_cors import CORS
-from flask import flash
-from riotwatcher import LolWatcher, ApiError
+from botocore.exceptions import ClientError
+from riotwatcher import LolWatcher
 import os
-import pandas as pd
+import json
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate, migrate
 
 app = Flask(__name__)
 
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+
+db = SQLAlchemy(app)
+
+migrate = Migrate(app, db)
+
+class Profile(db.Model):
+    # Id : Field which stores unique id for every row in
+    # database table.
+    # first_name: Used to store the first name if the user
+    # last_name: Used to store last name of the user
+    # Age: Used to store the age of the user
+
+
+    # 现在这里加column，在这里加完直接用flask db migrate -m "something" commit 然后 flask db upgrade更新数据库，之后再在下面的页面
+    # /router进行调用！！！！！
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(20), unique=False, nullable=False)
+    last_name = db.Column(db.String(20), unique=False, nullable=False)
+    age = db.Column(db.Integer, nullable=False)
+    school = db.Column(db.String(20), unique=False, nullable=False)
+    sex = db.Column(db.String(20), unique=False, nullable=False)
+
+    # repr method represents how one object of this datatable
+    # will look like
+    def __repr__(self):
+        return f"Name : {self.first_name}, Age: {self.age}"
 
 # golbal variables
-api_key = 'RGAPI-69ed207d-fefd-40e5-b290-8ab3515238b9'
+api_key = 'RGAPI-4063d9ba-b643-4a89-a616-dbe3fbe915bb'
 watcher = LolWatcher(api_key)
 my_region = 'na1'
 
@@ -104,67 +130,183 @@ except:
     print("User name not exist")
 
 
-@app.route("/", methods=['GET', 'POST'])
-def home():
-    if login_status == True:
-        if request.method == 'POST':
-            # Then get the data from the form
-            tag = request.form['tag']
+# @app.route('/')
+# @app.route('/login', methods=['GET', 'POST'])
+# def login():
+#     msg = ''
+#     if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
+#         username = request.form['username']
+#         password = request.form['password']
+#         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+#         cursor.execute('SELECT * FROM accounts WHERE username = % s AND password = % s', (username, password,))
+#         account = cursor.fetchone()
+#         if account:
+#             session['loggedin'] = True
+#             session['id'] = account['id']
+#             session['username'] = account['username']
+#             msg = 'Logged in successfully !'
+#             return render_template('index.html', msg=msg)
+#         else:
+#             msg = 'Incorrect username / password !'
+#     return render_template('login.html', msg=msg)
+#
+#
+# @app.route('/logout')
+# def logout():
+#     session.pop('loggedin', None)
+#     session.pop('id', None)
+#     session.pop('username', None)
+#     return redirect(url_for('login'))
+#
+#
+# @app.route('/register', methods=['GET', 'POST'])
+# def register():
+#     msg = ''
+#     if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form and 'address' in request.form and 'city' in request.form and 'country' in request.form and 'postalcode' in request.form and 'organisation' in request.form:
+#         username = request.form['username']
+#         password = request.form['password']
+#         email = request.form['email']
+#         organisation = request.form['organisation']
+#         address = request.form['address']
+#         city = request.form['city']
+#         state = request.form['state']
+#         country = request.form['country']
+#         postalcode = request.form['postalcode']
+#         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+#         cursor.execute('SELECT * FROM accounts WHERE username = % s', (username,))
+#         account = cursor.fetchone()
+#         if account:
+#             msg = 'Account already exists !'
+#         elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
+#             msg = 'Invalid email address !'
+#         elif not re.match(r'[A-Za-z0-9]+', username):
+#             msg = 'name must contain only characters and numbers !'
+#         else:
+#             cursor.execute('INSERT INTO accounts VALUES (NULL, % s, % s, % s, % s, % s, % s, % s, % s, % s)',
+#                            (username, password, email, organisation, address, city, state, country, postalcode,))
+#             mysql.connection.commit()
+#             msg = 'You have successfully registered !'
+#     elif request.method == 'POST':
+#         msg = 'Please fill out the form !'
+#     return render_template('register.html', msg=msg)
+#
+#
+# @app.route("/index")
+# def index():
+#     if 'loggedin' in session:
+#         return render_template("index.html")
+#     return redirect(url_for('login'))
+#
+#
+# @app.route("/display")
+# def display():
+#     if 'loggedin' in session:
+#         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+#         cursor.execute('SELECT * FROM accounts WHERE id = % s', (session['id'],))
+#         account = cursor.fetchone()
+#         return render_template("display.html", account=account)
+#     return redirect(url_for('login'))
+#
+#
+# @app.route("/update", methods=['GET', 'POST'])
+# def update():
+#     msg = ''
+#     if 'loggedin' in session:
+#         if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form and 'address' in request.form and 'city' in request.form and 'country' in request.form and 'postalcode' in request.form and 'organisation' in request.form:
+#             username = request.form['username']
+#             password = request.form['password']
+#             email = request.form['email']
+#             organisation = request.form['organisation']
+#             address = request.form['address']
+#             city = request.form['city']
+#             state = request.form['state']
+#             country = request.form['country']
+#             postalcode = request.form['postalcode']
+#             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+#             cursor.execute('SELECT * FROM accounts WHERE username = % s', (username,))
+#             account = cursor.fetchone()
+#             if account:
+#                 msg = 'Account already exists !'
+#             elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
+#                 msg = 'Invalid email address !'
+#             elif not re.match(r'[A-Za-z0-9]+', username):
+#                 msg = 'name must contain only characters and numbers !'
+#             else:
+#                 cursor.execute(
+#                     'UPDATE accounts SET  username =% s, password =% s, email =% s, organisation =% s, address =% s, city =% s, state =% s, country =% s, postalcode =% s WHERE id =% s',
+#                     (username, password, email, organisation, address, city, state, country, postalcode,
+#                      (session['id'],),))
+#                 mysql.connection.commit()
+#                 msg = 'You have successfully updated !'
+#         elif request.method == 'POST':
+#             msg = 'Please fill out the form !'
+#         return render_template("update.html", msg=msg)
+#     return redirect(url_for('login'))
+#
+# if __name__ == "__main__":
+#     app.run(host ="localhost", port = int("5000"))
 
-            # Get the username/password associated with this tag
-            summonerID = request.form.get("tag")
-
-            try:
-                me = watcher.summoner.by_name(my_region, summonerID)
-
-                my_matches = watcher.match.matchlist_by_puuid(my_region, me['puuid'])
-
-                participants = []
-                counter = 0
-                for matches in my_matches:
-                    match_detailx = watcher.match.by_id(my_region, matches)
-
-                    match_detail = match_detailx['info']
-
-                    if counter == 0:
-                        for row in match_detail['participants']:
-                            participants_row = {}
-                            # participants_row['champion'] = row['championId']
-                            participants_row['champion Name'] = row['championName']
-                            # participants_row['win'] = row['win']
-                            participants_row['kills'] = row['kills']
-                            participants_row['deaths'] = row['deaths']
-                            participants_row['assists'] = row['assists']
-                            participants_row['DamageDealtToChamps'] = row['totalDamageDealtToChampions']
-                            participants_row['goldEarned'] = row['goldEarned']
-                            # participants_row['champLevel'] = row['champLevel']
-                            # participants_row['totalMinionsKilled'] = row['totalMinionsKilled']
-                            # participants_row['item0'] = item_dict[str(row['item0'])]
-                            # participants_row['item1'] = item_dict[str(row['item1'])]
-                            # participants_row['item2'] = item_dict[str(row['item2'])]
-                            # participants_row['item3'] = item_dict[str(row['item3'])]
-                            # participants_row['item4'] = item_dict[str(row['item4'])]
-                            # participants_row['item5'] = item_dict[str(row['item5'])]
-
-                            participants.append(participants_row)
-                            # print(participants)
-                        # df = pd.DataFrame(participants)
-                    else:
-                        break
-
-                    counter = counter + 1
-
-                return render_template("index.html", data = participants, name = summonerID)
-            except:
-                return render_template("index.html", data = "USERNOTEXIST")
-
-            # Otherwise this was a normal GET request
-        else:
-            data = "DONOTDISPLAY"
-            return render_template('index.html', data = data)
-        # return render_template('index.html', data = participants)
-    else:
-        return redirect(url_for('login'))
+# @app.route("/", methods=['GET', 'POST'])
+# def home():
+#     if login_status == True:
+#         if request.method == 'POST':
+#             # Then get the data from the form
+#             tag = request.form['tag']
+#
+#             # Get the username/password associated with this tag
+#             summonerID = request.form.get("tag")
+#
+#             try:
+#                 me = watcher.summoner.by_name(my_region, summonerID)
+#
+#                 my_matches = watcher.match.matchlist_by_puuid(my_region, me['puuid'])
+#
+#                 participants = []
+#                 counter = 0
+#                 for matches in my_matches:
+#                     match_detailx = watcher.match.by_id(my_region, matches)
+#
+#                     match_detail = match_detailx['info']
+#
+#                     if counter == 0:
+#                         for row in match_detail['participants']:
+#                             participants_row = {}
+#                             # participants_row['champion'] = row['championId']
+#                             participants_row['champion Name'] = row['championName']
+#                             # participants_row['win'] = row['win']
+#                             participants_row['kills'] = row['kills']
+#                             participants_row['deaths'] = row['deaths']
+#                             participants_row['assists'] = row['assists']
+#                             participants_row['DamageDealtToChamps'] = row['totalDamageDealtToChampions']
+#                             participants_row['goldEarned'] = row['goldEarned']
+#                             # participants_row['champLevel'] = row['champLevel']
+#                             # participants_row['totalMinionsKilled'] = row['totalMinionsKilled']
+#                             # participants_row['item0'] = item_dict[str(row['item0'])]
+#                             # participants_row['item1'] = item_dict[str(row['item1'])]
+#                             # participants_row['item2'] = item_dict[str(row['item2'])]
+#                             # participants_row['item3'] = item_dict[str(row['item3'])]
+#                             # participants_row['item4'] = item_dict[str(row['item4'])]
+#                             # participants_row['item5'] = item_dict[str(row['item5'])]
+#
+#                             participants.append(participants_row)
+#                             # print(participants)
+#                         # df = pd.DataFrame(participants)
+#                     else:
+#                         break
+#
+#                     counter = counter + 1
+#
+#                 return render_template("index.html", data = participants, name = summonerID)
+#             except:
+#                 return render_template("index.html", data = "USERNOTEXIST")
+#
+#             # Otherwise this was a normal GET request
+#         else:
+#             data = "DONOTDISPLAY"
+#             return render_template('index.html', data = data)
+#         # return render_template('index.html', data = participants)
+#     else:
+#         return redirect(url_for('login'))
 
 
 # Route for handling the login page logic
@@ -193,17 +335,65 @@ def uploads():
     print(hists)
     return render_template('uploads.html', hists=hists)
 
-@app.route('/', methods= ['GET', 'POST'])
-def get_message():
-    # if request.method == "GET":
-    print("Got request in main function")
-    return render_template("index.html")
-
 @app.route('/upload_static_file', methods=['POST'])
 def upload_static_file():
     print("Got request in static files")
-    print(request.files)
     f = request.files['static_file']
     f.save(os.path.join(app.root_path, 'static/uploads/'+f.filename))
+    # content_type = request.mimetype
+    # s3_client = boto3.client('s3')
+    # response = s3_client.upload_fileobj(f, "haobochengfirstbucket", "something1")
+    # s3_upload_small_files(f, "haobochengfirstbucket", "something1", content_type)
+
+    # response = s3_client.upload_file(f, "haobochengfirstbucket")
+
     resp = {"success": True, "response": "file saved!"}
     return jsonify(resp), 200
+
+
+
+@app.route('/')
+def index():
+      # Query all data and then pass it to the template
+    profiles = Profile.query.all()
+    return render_template('index.html', profiles=profiles)
+
+@app.route('/add_data')
+def add_data():
+    return render_template('add_profile.html')
+
+
+# function to add profiles
+@app.route('/add', methods=["POST"])
+def profile():
+    # In this function we will input data from the
+    # form page and store it in our database. Remember
+    # that inside the get the name should exactly be the same
+    # as that in the html input fields
+    first_name = request.form.get("first_name")
+    last_name = request.form.get("last_name")
+    age = request.form.get("age")
+
+    # 一定要先更新数据库（查看上面提示）！再在这里（和前端交互）调用数据库
+    school = request.form.get("school")
+    sex = request.form.get("sex")
+
+    # create an object of the Profile class of models and
+    # store data as a row in our datatable
+    if first_name != '' and last_name != '' and age is not None and sex != '' and school != '':
+        p = Profile(first_name=first_name, last_name=last_name, age=age, school=school, sex=sex)
+        db.session.add(p)
+        db.session.commit()
+        return redirect('/')
+    else:
+        return redirect('/')
+
+
+@app.route('/delete/<int:id>')
+def erase(id):
+    # deletes the data on the basis of unique id and
+    # directs to home page
+    data = Profile.query.get(id)
+    db.session.delete(data)
+    db.session.commit()
+    return redirect('/')
