@@ -37,7 +37,8 @@ class Profile(db.Model):
         return f"Name : {self.first_name}, Age: {self.age}"
 
 # golbal variables
-api_key = 'RGAPI-4063d9ba-b643-4a89-a616-dbe3fbe915bb'
+# Put your Riot Developer API key below
+api_key = 'XXXXXXXXXXXXXX'
 watcher = LolWatcher(api_key)
 my_region = 'na1'
 
